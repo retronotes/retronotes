@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "build": "tsc -b",
-    "dev": "npm run build && npm run start"
+    "dev": "npm run build && npm run start",
+    "render":"node /opt/render/project/src/dist/index.js",
+    "prod:render":"npm run build && npm run render"
   },
   "repository": {
     "type": "git",
