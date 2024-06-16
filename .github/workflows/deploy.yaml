@@ -21,8 +21,8 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
     - run: npm ci
-    # - run: |
-    #     touch .env
-    #     echo "${{ secrets.ENV_FILE_CONTENTS }}" > .env
+    - run: |
+        touch .env
+        echo '${{ secrets.ENV_FILE_CONTENTS }}' > .env
     - run: npm run build --if-present
     - run: pm2 restart retronotes-socket-server
