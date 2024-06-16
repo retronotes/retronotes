@@ -51,7 +51,11 @@ wss.on('connection', (socket: WebSocket) => {
 });
 
 app.get('/', (req: Request, res: Response) => {
-  res.send('Hello World!');
+  res.send('Welocme to retronotes');
+});
+
+app.post('/test', (req: Request, res: Response) => {
+  res.send('This is test route for retronotes');
 });
 
 app.get('/retronote/:id', async (req: Request, res: Response) => {
@@ -69,7 +73,7 @@ app.get('/retronote/:id', async (req: Request, res: Response) => {
       res.status(404).send({ error: "Retro not found" })
     }
   } catch (error) {
-    res.status(500).send({ error: "Internal server error" })
+    res.status(500).send({ error: `Internal server error:=> ${error}` })
   }
 })
 app.post('/retronote', async (req: Request, res: Response) => {
@@ -84,8 +88,8 @@ app.post('/retronote', async (req: Request, res: Response) => {
       },
     });
     res.status(200).send({ data: newRetro, message: "New retronote is created succesfully" });
-  } catch {
-    res.status(500).send({ error: "Internal server error" })
+  } catch(error) {
+    res.status(500).send({ error: `Internal server error:=> ${error}` })
   }
 });
 
@@ -99,7 +103,7 @@ app.delete('/retronote/:id', async (req: Request, res: Response) => {
       res.status(200).json({ message: 'Retro deleted successfully', retro });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: `Internal server error:=> ${error}` });
   }
 });
 
@@ -108,7 +112,7 @@ app.delete('/retronotes', async (req: Request, res: Response) => {
     const result = await prisma.retro.deleteMany({});
     res.status(200).json({ message: 'All retros deleted successfully', count: result.count });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: `Internal server error:=> ${error}` });
   }
 });
 
