@@ -103,7 +103,7 @@ app.delete('/retronote/:id', async (req: Request, res: Response) => {
   }
 });
 
-app.delete('/retronote', async (req: Request, res: Response) => {
+app.delete('/retronotes', async (req: Request, res: Response) => {
   try {
     const result = await prisma.retro.deleteMany({});
     res.status(200).json({ message: 'All retros deleted successfully', count: result.count });
