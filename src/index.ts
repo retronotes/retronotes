@@ -1,24 +1,33 @@
-import express, { Request, Response } from "express";
-import http from "http"
+import express, { Request, Response } from 'express';
+import http from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
-import { PrismaClient } from '@prisma/client'
-import bodyParser from "body-parser";
+import { PrismaClient } from '@prisma/client';
+import bodyParser from 'body-parser';
+import cors from "cors";
+
 const app = express();
-const PORT = process.env.PORT || 8080
-const server = http.createServer(app)
+const PORT = process.env.PORT || 8080;
+const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(bodyParser.json())
+// Message Queue using Map to store unique messages
+const messageQueue = new Map<string, Retro>();
+
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(cors());
+
 type Retro = {
-  id?: string;
-  retro_name: string,
-  what_went_well: string[],
-  what_went_wrong: string[],
-  action_item: string[],
-}
+  id: string;
+  user_id : string,
+  retro_name: string;
+  what_went_well: string[];
+  what_went_wrong: string[];
+  action_item: string[];
+};
 
+// WebSocket connection handling
 wss.on('connection', (socket: WebSocket) => {
   socket.on('error', (error) => {
     console.error(`WebSocket error: ${error}`);
@@ -27,99 +36,74 @@ wss.on('connection', (socket: WebSocket) => {
   socket.on('message', async (data: WebSocket.Data) => {
     try {
       const message = JSON.parse(data.toString()) as Retro;
-      if (message.id) {
-        await prisma.retro.update({
-          where: { id: message.id },
-          data: {
-            retro_name: message.retro_name,
-            what_went_well: message.what_went_well,
-            what_went_wrong: message.what_went_wrong,
-            action_item: message.action_item,
-          },
-        });
+      // Add message to queue or update existing message
+      messageQueue.set(message.id, message);
+      console.log(`Message added to queue: ${message.id}`);
+
+       // Restart interval if queue was empty
+       if (messageQueue.size === 1) {
+        startProcessingInterval();
       }
     } catch (err) {
-      console.log("error", err);
+      console.log('Error parsing message:', err);
     }
-
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(data)
-      }
-    });
   });
 });
 
+// Interval to process message queue
+let processingInterval: NodeJS.Timeout | null = null;
+
+function startProcessingInterval() {
+  if (processingInterval === null) {
+    processingInterval = setInterval(processMessageQueue, 1000);
+    console.log('Processing interval started.');
+  }
+}
+
+function stopProcessingInterval() {
+  if (processingInterval !== null) {
+    clearInterval(processingInterval);
+    processingInterval = null;
+    console.log('Processing interval stopped.');
+  }
+}
+
+// Function to process message queue every second
+async function processMessageQueue() {
+  if (messageQueue.size === 0) {
+    console.log('Message queue is empty. Stopping processing.');
+    stopProcessingInterval();
+    return;
+  }
+
+  const messagesToProcess = Array.from(messageQueue.values());
+  messageQueue.clear(); // Clear the message queue
+
+  try {
+    // Process each message and store in database
+    for (const message of messagesToProcess) {
+      await prisma.retro.update({
+        where: { id: message.id },
+        data: {
+          retro_name: message.retro_name,
+          what_went_well: message.what_went_well,
+          what_went_wrong: message.what_went_wrong,
+          action_item: message.action_item,
+        },
+      });
+    }
+
+    console.log(`Processed ${messagesToProcess.length} message(s) from the queue.`);
+  } catch (error) {
+    console.error('Error processing message queue:', error);
+  }
+}
+
+// Routes
 app.get('/', (req: Request, res: Response) => {
-  res.send('Welocme to retronotes');
-});
-
-app.post('/test', (req: Request, res: Response) => {
-  res.send('This is test route for retronotes');
-});
-
-app.get('/retronote/:id', async (req: Request, res: Response) => {
-  const { id } = req.params
-  try {
-    const retro = await prisma.retro.findUnique({
-      where: {
-        id: id,
-      }
-    })
-
-    if (retro) {
-      res.status(200).send(retro)
-    } else {
-      res.status(404).send({ error: "Retro not found" })
-    }
-  } catch (error) {
-    res.status(500).send({ error: `Internal server error:=> ${error}` })
-  }
-})
-app.post('/retronote', async (req: Request, res: Response) => {
-  try {
-    const { retro_name } = req.body;
-    const newRetro = await prisma.retro.create({
-      data: {
-        retro_name: retro_name,
-        what_went_well: [],
-        what_went_wrong: [],
-        action_item: [],
-      },
-    });
-    res.status(200).send({ data: newRetro, message: "New retronote is created succesfully" });
-  } catch(error) {
-    res.status(500).send({ error: `Internal server error:=> ${error}` })
-  }
-});
-
-app.delete('/retronote/:id', async (req: Request, res: Response) => {
-  const { id } = req.params;
-  try {
-    const retro = await prisma.retro.delete({
-      where: { id: id },
-    });
-    if (retro) {
-      res.status(200).json({ message: 'Retro deleted successfully', retro });
-    }
-  } catch (error) {
-    res.status(500).json({ error: `Internal server error:=> ${error}` });
-  }
-});
-
-app.delete('/retronotes', async (req: Request, res: Response) => {
-  try {
-    const result = await prisma.retro.deleteMany({});
-    res.status(200).json({ message: 'All retros deleted successfully', count: result.count });
-  } catch (error) {
-    res.status(500).json({ error: `Internal server error:=> ${error}` });
-  }
+  res.send('Welcome to RetroNotes');
 });
 
 server.listen(PORT, () => {
   console.log(`Server is running on port: ${PORT}`);
-})
-
-
-
-
+});
