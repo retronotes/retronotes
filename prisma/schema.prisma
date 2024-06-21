@@ -15,6 +15,7 @@ datasource db {
 
 model Retro{
   id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  user_id         String   
   retro_name      String 
   what_went_well  String[]
   what_went_wrong String[]
