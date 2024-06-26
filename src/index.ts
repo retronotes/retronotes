@@ -21,9 +21,7 @@ app.use(cors());
 type Retro = {
   id: string;
   user_id : string,
-  retro_name: string,
-  discussion_notes: string,
-  retro_headers: string[],
+  retro_name: string;
   what_went_well: string[];
   what_went_wrong: string[];
   action_item: string[];
@@ -94,8 +92,6 @@ async function processMessageQueue() {
         where: { id: message.id },
         data: {
           retro_name: message.retro_name,
-          discussion_notes: message.discussion_notes,
-          retro_headers: message.retro_headers,
           what_went_well: message.what_went_well,
           what_went_wrong: message.what_went_wrong,
           action_item: message.action_item,
